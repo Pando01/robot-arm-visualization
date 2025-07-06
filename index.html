@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로봇 팔 움직임과 삼각함수 관계</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .title {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+        
+        .visualization-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .robot-container, .graph-container {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .robot-arm {
+            width: 100%;
+            height: 400px;
+            position: relative;
+            background: radial-gradient(circle at center, #fff 0%, #f0f0f0 100%);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .joint {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #2c3e50;
+            border-radius: 50%;
+            border: 3px solid #34495e;
+            z-index: 10;
+        }
+        
+        .arm-segment {
+            position: absolute;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            border-radius: 8px;
+            transform-origin: left center;
+            border: 2px solid #2980b9;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .control-group {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .math-display {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            margin: 20px 0;
+        }
+        
+        .equation {
+            font-size: 1.2em;
+            margin: 10px 0;
+            text-align: center;
+        }
+        
+        .parameter-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .parameter {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #3498db;
+        }
+        
+        .parameter-name {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .parameter-value {
+            font-size: 1.4em;
+            color: #e74c3c;
+            font-family: monospace;
+        }
+        
+        .graph {
+            width: 100%;
+            height: 350px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+        
+        .section-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">🤖 로봇 팔 움직임과 삼각함수 관계</h1>
+        
+        <div class="visualization-area">
+            <!-- 로봇 팔 시각화 -->
+            <div class="robot-container">
+                <h3 class="section-title">로봇 팔 시뮬레이션</h3>
+                <svg class="robot-arm" id="robotArm" viewBox="0 0 400 400">
+                    <!-- 배경 그리드 -->
+                    <defs>
+                        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#f0f0f0" stroke-width="1"/>
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
+                    
+                    <!-- 원점 표시 -->
+                    <circle cx="200" cy="200" r="5" fill="#e74c3c" stroke="#c0392b" stroke-width="2"/>
+                    <text x="210" y="205" font-size="12" fill="#666">원점 (0,0)</text>
+                    
+                    <!-- 로봇 팔 세그먼트들 -->
+                    <line id="upperArm" x1="200" y1="200" x2="200" y2="200" 
+                          stroke="#2ecc71" stroke-width="8" stroke-linecap="round"/>
+                    <line id="forearm" x1="200" y1="200" x2="200" y2="200" 
+                          stroke="#3498db" stroke-width="6" stroke-linecap="round"/>
+                    <line id="hand" x1="200" y1="200" x2="200" y2="200" 
+                          stroke="#e74c3c" stroke-width="4" stroke-linecap="round"/>
+                    
+                    <!-- 관절 포인트들 -->
+                    <circle id="shoulder" cx="200" cy="200" r="8" fill="#34495e" stroke="#2c3e50" stroke-width="2"/>
+                    <circle id="elbow" cx="200" cy="200" r="6" fill="#34495e" stroke="#2c3e50" stroke-width="2"/>
+                    <circle id="wrist" cx="200" cy="200" r="4" fill="#34495e" stroke="#2c3e50" stroke-width="2"/>
+                    
+                    <!-- 궤적 표시 -->
+                    <path id="trajectory" fill="none" stroke="#9b59b6" stroke-width="2" opacity="0.7"/>
+                    
+                    <!-- 각도 표시 -->
+                    <path id="angleArc1" fill="none" stroke="#f39c12" stroke-width="2"/>
+                    <path id="angleArc2" fill="none" stroke="#e67e22" stroke-width="2"/>
+                    
+                    <!-- 레이블 -->
+                    <text x="10" y="30" font-size="14" font-weight="bold" fill="#2c3e50">상완 (Upper Arm)</text>
+                    <line x1="10" y1="35" x2="50" y2="35" stroke="#2ecc71" stroke-width="4"/>
+                    
+                    <text x="10" y="55" font-size="14" font-weight="bold" fill="#2c3e50">하완 (Forearm)</text>
+                    <line x1="10" y1="60" x2="50" y2="60" stroke="#3498db" stroke-width="4"/>
+                    
+                    <text x="10" y="80" font-size="14" font-weight="bold" fill="#2c3e50">손 (Hand)</text>
+                    <line x1="10" y1="85" x2="50" y2="85" stroke="#e74c3c" stroke-width="4"/>
+                </svg>
+            </div>
+            
+            <!-- 그래프 영역 -->
+            <div class="graph-container">
+                <h3 class="section-title">삼각함수 그래프</h3>
+                <canvas id="graphCanvas" class="graph"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #e74c3c;"></div>
+                        <span>위치 θ(t)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #2ecc71;"></div>
+                        <span>속도 θ'(t)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #3498db;"></div>
+                        <span>가속도 θ''(t)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 수학 공식 표시 -->
+        <div class="math-display">
+            <div class="equation">📐 기본 삼각함수 모델</div>
+            <div class="equation">θ(t) = A × sin(ωt + φ)</div>
+            <div class="equation">θ'(t) = Aω × cos(ωt + φ)  (속도)</div>
+            <div class="equation">θ''(t) = -Aω² × sin(ωt + φ)  (가속도)</div>
+        </div>
+        
+        <!-- 매개변수 표시 -->
+        <div class="parameter-display">
+            <div class="parameter">
+                <div class="parameter-name">진폭 (A)</div>
+                <div class="parameter-value" id="amplitudeValue">2.0</div>
+            </div>
+            <div class="parameter">
+                <div class="parameter-name">각속도 (ω)</div>
+                <div class="parameter-value" id="frequencyValue">1.0</div>
+            </div>
+            <div class="parameter">
+                <div class="parameter-name">위상 (φ)</div>
+                <div class="parameter-value" id="phaseValue">0.0</div>
+            </div>
+            <div class="parameter">
+                <div class="parameter-name">현재 각도</div>
+                <div class="parameter-value" id="currentAngle">0°</div>
+            </div>
+        </div>
+        
+        <!-- 컨트롤 패널 -->
+        <div class="controls">
+            <div class="control-group">
+                <label for="amplitude">진폭 (A): 움직임의 최대 범위</label>
+                <input type="range" id="amplitude" class="slider" min="0.5" max="3" step="0.1" value="2">
+                <span>현재값: <span id="ampDisplay">2.0</span></span>
+            </div>
+            
+            <div class="control-group">
+                <label for="frequency">각속도 (ω): 움직임의 빠르기</label>
+                <input type="range" id="frequency" class="slider" min="0.2" max="3" step="0.1" value="1">
+                <span>현재값: <span id="freqDisplay">1.0</span></span>
+            </div>
+            
+            <div class="control-group">
+                <label for="phase">위상 (φ): 시작점 조정</label>
+                <input type="range" id="phase" class="slider" min="0" max="6.28" step="0.1" value="0">
+                <span>현재값: <span id="phaseDisplay">0.0</span></span>
+            </div>
+            
+            <div class="control-group">
+                <label for="speed">애니메이션 속도</label>
+                <input type="range" id="speed" class="slider" min="0.1" max="2" step="0.1" value="1">
+                <span>현재값: <span id="speedDisplay">1.0</span>x</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 전역 변수들
+        let time = 0;
+        let amplitude = 2;
+        let frequency = 1;
+        let phase = 0;
+        let animationSpeed = 1;
+        let trajectory = [];
+        
+        // DOM 요소들
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth * 2;
+        canvas.height = canvas.offsetHeight * 2;
+        ctx.scale(2, 2);
+        
+        // 슬라이더 이벤트 리스너
+        document.getElementById('amplitude').addEventListener('input', (e) => {
+            amplitude = parseFloat(e.target.value);
+            document.getElementById('ampDisplay').textContent = amplitude.toFixed(1);
+            document.getElementById('amplitudeValue').textContent = amplitude.toFixed(1);
+        });
+        
+        document.getElementById('frequency').addEventListener('input', (e) => {
+            frequency = parseFloat(e.target.value);
+            document.getElementById('freqDisplay').textContent = frequency.toFixed(1);
+            document.getElementById('frequencyValue').textContent = frequency.toFixed(1);
+        });
+        
+        document.getElementById('phase').addEventListener('input', (e) => {
+            phase = parseFloat(e.target.value);
+            document.getElementById('phaseDisplay').textContent = phase.toFixed(1);
+            document.getElementById('phaseValue').textContent = phase.toFixed(1);
+        });
+        
+        document.getElementById('speed').addEventListener('input', (e) => {
+            animationSpeed = parseFloat(e.target.value);
+            document.getElementById('speedDisplay').textContent = animationSpeed.toFixed(1);
+        });
+        
+        // 삼각함수 계산
+        function calculatePosition(t) {
+            return amplitude * Math.sin(frequency * t + phase);
+        }
+        
+        function calculateVelocity(t) {
+            return amplitude * frequency * Math.cos(frequency * t + phase);
+        }
+        
+        function calculateAcceleration(t) {
+            return -amplitude * frequency * frequency * Math.sin(frequency * t + phase);
+        }
+        
+        // 로봇 팔 업데이트
+        function updateRobotArm() {
+            const shoulderAngle = calculatePosition(time);
+            const elbowAngle = calculatePosition(time * 0.7 + 1) * 0.5; // 다른 주파수로 움직임
+            
+            // 링크 길이
+            const L1 = 80; // 상완
+            const L2 = 60; // 하완
+            const L3 = 40; // 손
+            
+            // 관절 위치 계산
+            const shoulderX = 200;
+            const shoulderY = 200;
+            
+            const elbowX = shoulderX + L1 * Math.cos(shoulderAngle);
+            const elbowY = shoulderY + L1 * Math.sin(shoulderAngle);
+            
+            const wristX = elbowX + L2 * Math.cos(shoulderAngle + elbowAngle);
+            const wristY = elbowY + L2 * Math.sin(shoulderAngle + elbowAngle);
+            
+            const endX = wristX + L3 * Math.cos(shoulderAngle + elbowAngle);
+            const endY = wristY + L3 * Math.sin(shoulderAngle + elbowAngle);
+            
+            // SVG 업데이트
+            document.getElementById('upperArm').setAttribute('x2', elbowX);
+            document.getElementById('upperArm').setAttribute('y2', elbowY);
+            
+            document.getElementById('forearm').setAttribute('x1', elbowX);
+            document.getElementById('forearm').setAttribute('y1', elbowY);
+            document.getElementById('forearm').setAttribute('x2', wristX);
+            document.getElementById('forearm').setAttribute('y2', wristY);
+            
+            document.getElementById('hand').setAttribute('x1', wristX);
+            document.getElementById('hand').setAttribute('y1', wristY);
+            document.getElementById('hand').setAttribute('x2', endX);
+            document.getElementById('hand').setAttribute('y2', endY);
+            
+            document.getElementById('elbow').setAttribute('cx', elbowX);
+            document.getElementById('elbow').setAttribute('cy', elbowY);
+            
+            document.getElementById('wrist').setAttribute('cx', wristX);
+            document.getElementById('wrist').setAttribute('cy', wristY);
+            
+            // 궤적 추가
+            trajectory.push({x: endX, y: endY});
+            if (trajectory.length > 100) trajectory.shift();
+            
+            // 궤적 경로 업데이트
+            if (trajectory.length > 1) {
+                let pathData = `M ${trajectory[0].x} ${trajectory[0].y}`;
+                for (let i = 1; i < trajectory.length; i++) {
+                    pathData += ` L ${trajectory[i].x} ${trajectory[i].y}`;
+                }
+                document.getElementById('trajectory').setAttribute('d', pathData);
+            }
+            
+            // 현재 각도 표시
+            document.getElementById('currentAngle').textContent = 
+                (shoulderAngle * 180 / Math.PI).toFixed(1) + '°';
+        }
+        
+        // 그래프 그리기
+        function drawGraph() {
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            // 배경
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(0, 0, width, height);
+            
+            // 그리드
+            ctx.strokeStyle = '#e9ecef';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= width; i += 20) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, height);
+                ctx.stroke();
+            }
+            for (let i = 0; i <= height; i += 20) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(width, i);
+                ctx.stroke();
+            }
+            
+            // 축
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, height/2);
+            ctx.lineTo(width, height/2);
+            ctx.moveTo(30, 0);
+            ctx.lineTo(30, height);
+            ctx.stroke();
+            
+            // 함수 그래프 그리기
+            const timeRange = 4 * Math.PI;
+            const steps = width - 30;
+            
+            // 위치 (빨강)
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < steps; i++) {
+                const t = (i / steps) * timeRange;
+                const pos = calculatePosition(t);
+                const x = 30 + i;
+                const y = height/2 - pos * 50;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // 속도 (초록)
+            ctx.strokeStyle = '#2ecc71';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < steps; i++) {
+                const t = (i / steps) * timeRange;
+                const vel = calculateVelocity(t);
+                const x = 30 + i;
+                const y = height/2 - vel * 20;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // 가속도 (파랑)
+            ctx.strokeStyle = '#3498db';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < steps; i++) {
+                const t = (i / steps) * timeRange;
+                const acc = calculateAcceleration(t);
+                const x = 30 + i;
+                const y = height/2 - acc * 10;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // 현재 시간 표시
+            const currentX = 30 + (time % timeRange) / timeRange * (width - 30);
+            ctx.strokeStyle = '#f39c12';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(currentX, 0);
+            ctx.lineTo(currentX, height);
+            ctx.stroke();
+            
+            // 레이블
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = '12px Arial';
+            ctx.fillText('시간 →', width - 60, height/2 + 20);
+            ctx.fillText('각도', 5, 20);
+        }
+        
+        // 애니메이션 루프
+        function animate() {
+            time += 0.05 * animationSpeed;
+            updateRobotArm();
+            drawGraph();
+            requestAnimationFrame(animate);
+        }
+        
+        // 초기화 및 시작
+        animate();
+    </script>
+</body>
+</html>
